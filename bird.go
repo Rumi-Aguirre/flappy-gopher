@@ -7,7 +7,14 @@ import (
 	"sync"
 )
 
-const gravity = 1
+const (
+	gravity      = 1
+	initialY     = 320
+	initialSpeed = 8
+	birdHeight   = 50
+	birdWidth    = 43
+	jumpSpeed    = -14
+)
 
 type bird struct {
 	mu         sync.RWMutex
@@ -21,16 +28,23 @@ type bird struct {
 func newBird(r *sdl.Renderer) (*bird, error) {
 	var textures []*sdl.Texture
 	for i := 1; i <= 4; i++ {
-		path := fmt.Sprintf("./resources/Frame-%v.png", i)
+		path := fmt.Sprintf("./resources/Frame-%d.png", i)
 		texture, err := img.LoadTexture(r, path)
 		if err != nil {
-			return nil, fmt.Errorf("could not create scene: %v", err)
+			return nil, fmt.Errorf("could not create bird textures: %v", err)
 		}
-
 		textures = append(textures, texture)
 	}
 
-	return &bird{time: 0, textures: textures, y: 320, speed: 8, x: 40, h: 50, w: 43}, nil
+	return &bird{
+		time:     0,
+		textures: textures,
+		x:        40,
+		y:        initialY,
+		h:        birdHeight,
+		w:        birdWidth,
+		speed:    initialSpeed,
+	}, nil
 }
 
 func (b *bird) paint(r *sdl.Renderer) error {
@@ -38,10 +52,9 @@ func (b *bird) paint(r *sdl.Renderer) error {
 	defer b.mu.RUnlock()
 
 	i := b.time % len(b.textures)
-	rectangle := &sdl.Rect{b.x, b.y, b.h, b.w}
-	err := r.Copy(b.textures[i], nil, rectangle)
-	if err != nil {
-		return fmt.Errorf("could not paint scene: %v", err)
+	rectangle := &sdl.Rect{X: b.x, Y: b.y, W: b.w, H: b.h}
+	if err := r.Copy(b.textures[i], nil, rectangle); err != nil {
+		return fmt.Errorf("could not paint bird: %v", err)
 	}
 
 	return nil
@@ -50,18 +63,20 @@ func (b *bird) paint(r *sdl.Renderer) error {
 func (b *bird) update() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
 	b.time++
 	b.y += int32(b.speed)
-	if b.y > 600 || b.y < 0 {
+	b.speed += gravity
+
+	if b.y > screenHeight || b.y < 0 {
 		b.dead = true
 	}
-
-	b.speed += gravity
 }
 
 func (b *bird) destroy() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
 	for _, t := range b.textures {
 		t.Destroy()
 	}
@@ -70,7 +85,8 @@ func (b *bird) destroy() {
 func (b *bird) jump() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.speed = -14
+
+	b.speed = jumpSpeed
 }
 
 func (b *bird) isDead() bool {
@@ -81,11 +97,11 @@ func (b *bird) isDead() bool {
 }
 
 func (b *bird) restart() {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 
-	b.y = 320
-	b.speed = 8
+	b.y = initialY
+	b.speed = initialSpeed
 	b.dead = false
 }
 
@@ -93,23 +109,17 @@ func (b *bird) touch(p *pipe) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	if p.x > b.x+b.w { // too far right
-		return
-	}
-
-	if p.x+p.w < b.x { // too far left
+	if p.x > b.x+b.w || p.x+p.w < b.x {
 		return
 	}
 
 	if p.inverted {
-		if p.h < b.y-b.h { // pipe is too low
-			return
+		if b.y < p.h {
+			b.dead = true
 		}
 	} else {
-		if p.h > b.y-b.h/2 { // pipe is too low
-			return
+		if b.y+b.h > screenHeight-p.h {
+			b.dead = true
 		}
 	}
-
-	b.dead = true
 }

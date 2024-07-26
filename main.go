@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+const (
+	screenHeight = 600
+)
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stdout, "%v", err)

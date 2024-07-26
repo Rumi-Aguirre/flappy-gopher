@@ -9,6 +9,15 @@ import (
 	"time"
 )
 
+const (
+	pipeTexturePath = "./resources/pipe-3.png"
+	initialPipeX    = 800
+	pipeWidth       = 43
+	minPipeHeight   = 220
+	maxPipeHeight   = 340 // minPipeHeight + 120
+	pipeSpeed       = 10
+)
+
 type pipes struct {
 	mu      sync.RWMutex
 	texture *sdl.Texture
@@ -26,40 +35,48 @@ type pipe struct {
 }
 
 func newPipes(r *sdl.Renderer) (*pipes, error) {
-	texture, err := img.LoadTexture(r, "./resources/pipe-3.png")
+	texture, err := img.LoadTexture(r, pipeTexturePath)
 	if err != nil {
-		fmt.Errorf("canno load pipe texture: %v", err)
+		return nil, fmt.Errorf("cannot load pipe texture: %v", err)
 	}
 
 	ps := &pipes{
 		texture: texture,
-		speed:   10,
+		speed:   pipeSpeed,
 	}
 
-	go func() {
-		for {
-			ps.mu.Lock()
-			pipe, _ := newPipe(r)
-			ps.pipes = append(ps.pipes, pipe)
-			ps.mu.Unlock()
-			time.Sleep(1 * time.Second)
-		}
-	}()
+	go ps.generatePipes(r)
 
 	return ps, nil
 }
 
+func (ps *pipes) generatePipes(r *sdl.Renderer) {
+	for {
+		pipe, err := newPipe(r)
+		if err != nil {
+			fmt.Printf("error creating new pipe: %v\n", err)
+			continue
+		}
+
+		ps.mu.Lock()
+		ps.pipes = append(ps.pipes, pipe)
+		ps.mu.Unlock()
+
+		time.Sleep(1 * time.Second)
+	}
+}
+
 func newPipe(r *sdl.Renderer) (*pipe, error) {
-	texture, err := img.LoadTexture(r, "./resources/pipe-3.png")
+	texture, err := img.LoadTexture(r, pipeTexturePath)
 	if err != nil {
-		fmt.Errorf("canno load pipe texture: %v", err)
+		return nil, fmt.Errorf("cannot load pipe texture: %v", err)
 	}
 
 	return &pipe{
 		texture:  texture,
-		x:        800,
-		h:        220 + int32(rand.Intn(120)),
-		w:        43,
+		x:        initialPipeX,
+		h:        minPipeHeight + int32(rand.Intn(maxPipeHeight-minPipeHeight)),
+		w:        pipeWidth,
 		inverted: rand.Float32() > 0.5,
 	}, nil
 }
@@ -67,23 +84,23 @@ func newPipe(r *sdl.Renderer) (*pipe, error) {
 func (p *pipe) paint(r *sdl.Renderer, texture *sdl.Texture) error {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	rectangle := &sdl.Rect{p.x, 600 - p.h, p.w, p.h}
 
+	y := screenHeight - p.h
 	if p.inverted {
-		rectangle.Y = 0
+		y = 0
 	}
+	rectangle := &sdl.Rect{X: p.x, Y: y, W: p.w, H: p.h}
 
-	err := r.Copy(texture, nil, rectangle)
-	if err != nil {
-		return fmt.Errorf("could not paint scene: %v", err)
+	if err := r.Copy(texture, nil, rectangle); err != nil {
+		return fmt.Errorf("could not paint pipe: %v", err)
 	}
 
 	return nil
 }
 
 func (p *pipe) update(speed int32) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	p.x -= speed
 }
@@ -91,6 +108,7 @@ func (p *pipe) update(speed int32) {
 func (p *pipe) touch(b *bird) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
+
 	b.touch(p)
 }
 
@@ -111,16 +129,16 @@ func (ps *pipes) update() {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
-	var rem []*pipe
+	var remainingPipes []*pipe
 
 	for _, p := range ps.pipes {
 		p.update(ps.speed)
 		if p.x > -30 {
-			rem = append(rem, p)
+			remainingPipes = append(remainingPipes, p)
 		}
 	}
 
-	ps.pipes = rem
+	ps.pipes = remainingPipes
 }
 
 func (ps *pipes) destroy() {
