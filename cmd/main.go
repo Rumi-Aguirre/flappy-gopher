@@ -45,14 +45,13 @@ func run() error {
 	sdl.PumpEvents()
 
 	scene, err := scene.NewScene(r)
-
+	if err != nil {
+		return fmt.Errorf("cannot create scene: %v", err)
+	}
 	scene.DrawTitle(r, gameTitle)
 
 	time.Sleep(1 * time.Second)
 
-	if err != nil {
-		return fmt.Errorf("cannot create scene: %v", err)
-	}
 	defer scene.Destroy()
 
 	events := make(chan sdl.Event)
