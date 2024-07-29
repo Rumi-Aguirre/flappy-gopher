@@ -36,8 +36,8 @@ type Pipe struct {
 	Inverted bool
 }
 
-func NewPipes(r *sdl.Renderer) (*Pipes, error) {
-	texture, err := img.LoadTexture(r, pipeTexturePath)
+func NewPipes(renderer *sdl.Renderer) (*Pipes, error) {
+	texture, err := img.LoadTexture(renderer, pipeTexturePath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load Pipe texture: %v", err)
 	}
@@ -47,14 +47,14 @@ func NewPipes(r *sdl.Renderer) (*Pipes, error) {
 		speed:   pipeSpeed,
 	}
 
-	go ps.generatePipes(r)
+	go ps.generatePipes(renderer)
 
 	return ps, nil
 }
 
-func (ps *Pipes) generatePipes(r *sdl.Renderer) {
+func (ps *Pipes) generatePipes(renderer *sdl.Renderer) {
 	for {
-		pipe, err := NewPipe(r)
+		pipe, err := NewPipe(renderer)
 		if err != nil {
 			fmt.Printf("error creating new Pipe: %v\n", err)
 			continue
@@ -68,8 +68,8 @@ func (ps *Pipes) generatePipes(r *sdl.Renderer) {
 	}
 }
 
-func NewPipe(r *sdl.Renderer) (*Pipe, error) {
-	texture, err := img.LoadTexture(r, pipeTexturePath)
+func NewPipe(renderer *sdl.Renderer) (*Pipe, error) {
+	texture, err := img.LoadTexture(renderer, pipeTexturePath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load Pipe texture: %v", err)
 	}
@@ -83,7 +83,7 @@ func NewPipe(r *sdl.Renderer) (*Pipe, error) {
 	}, nil
 }
 
-func (p *Pipe) paint(r *sdl.Renderer, texture *sdl.Texture) error {
+func (p *Pipe) paint(renderer *sdl.Renderer, texture *sdl.Texture) error {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -93,7 +93,7 @@ func (p *Pipe) paint(r *sdl.Renderer, texture *sdl.Texture) error {
 	}
 	rectangle := &sdl.Rect{X: p.X, Y: y, W: p.W, H: p.H}
 
-	if err := r.Copy(texture, nil, rectangle); err != nil {
+	if err := renderer.Copy(texture, nil, rectangle); err != nil {
 		return fmt.Errorf("could not paint Pipe: %v", err)
 	}
 
@@ -107,36 +107,34 @@ func (p *Pipe) update(speed int32) {
 	p.X -= speed
 }
 
-func (p *Pipe) touch(b *bird.Bird) {
+func (p *Pipe) touch(bird *bird.Bird) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	//b.Touch(p)
+	bird.Mu.Lock()
+	defer bird.Mu.Unlock()
 
-	b.Mu.Lock()
-	defer b.Mu.Unlock()
-
-	if p.X > b.X+b.W || p.X+p.W < b.X {
+	if p.X > bird.X+bird.W || p.X+p.W < bird.X {
 		return
 	}
 
 	if p.Inverted {
-		if b.Y < p.H {
-			b.Dead = true
+		if bird.Y < p.H {
+			bird.Dead = true
 		}
 	} else {
-		if b.Y+b.H > window.Height-p.H {
-			b.Dead = true
+		if bird.Y+bird.H > window.Height-p.H {
+			bird.Dead = true
 		}
 	}
 }
 
-func (ps *Pipes) Paint(r *sdl.Renderer) error {
+func (ps *Pipes) Paint(renderer *sdl.Renderer) error {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 
 	for _, p := range ps.pipes {
-		if err := p.paint(r, ps.texture); err != nil {
+		if err := p.paint(renderer, ps.texture); err != nil {
 			return err
 		}
 	}
@@ -174,11 +172,11 @@ func (ps *Pipes) Restart() {
 	ps.pipes = nil
 }
 
-func (ps *Pipes) Touch(b *bird.Bird) {
+func (ps *Pipes) Touch(bird *bird.Bird) {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 
 	for _, p := range ps.pipes {
-		p.touch(b)
+		p.touch(bird)
 	}
 }

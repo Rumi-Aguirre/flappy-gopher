@@ -33,8 +33,8 @@ func (t *Title) Close() {
 	}
 }
 
-func (t *Title) Paint(r *sdl.Renderer, text string) error {
-	if err := r.Clear(); err != nil {
+func (t *Title) Paint(renderer *sdl.Renderer, text string) error {
+	if err := renderer.Clear(); err != nil {
 		return err
 	}
 
@@ -44,16 +44,16 @@ func (t *Title) Paint(r *sdl.Renderer, text string) error {
 	}
 	defer surface.Free()
 
-	texture, err := r.CreateTextureFromSurface(surface)
+	texture, err := renderer.CreateTextureFromSurface(surface)
 	if err != nil {
 		return fmt.Errorf("surface cannot be created: %v", err)
 	}
 	defer texture.Destroy()
 
-	if err := r.Copy(texture, nil, nil); err != nil {
+	if err := renderer.Copy(texture, nil, nil); err != nil {
 		return fmt.Errorf("error copying texture: %v", err)
 	}
 
-	r.Present()
+	renderer.Present()
 	return nil
 }

@@ -23,18 +23,18 @@ type scene struct {
 	title      *title.Title
 }
 
-func NewScene(r *sdl.Renderer) (*scene, error) {
-	bg, err := img.LoadTexture(r, "../resources/background.png")
+func NewScene(renderer *sdl.Renderer) (*scene, error) {
+	bg, err := img.LoadTexture(renderer, "../resources/background.png")
 	if err != nil {
 		return nil, fmt.Errorf("could not create scene: %v", err)
 	}
 
-	bird, err := bird.NewBird(r)
+	bird, err := bird.NewBird(renderer)
 	if err != nil {
 		return nil, err
 	}
 
-	pipes, err := pipes.NewPipes(r)
+	pipes, err := pipes.NewPipes(renderer)
 	if err != nil {
 		return nil, err
 	}
@@ -52,31 +52,31 @@ func (s *scene) update() {
 	s.pipes.Touch(s.bird)
 }
 
-func (s *scene) DrawTitle(r *sdl.Renderer, text string) error {
-	return s.title.Paint(r, text)
+func (s *scene) DrawTitle(renderer *sdl.Renderer, text string) error {
+	return s.title.Paint(renderer, text)
 }
 
-func (s *scene) paint(r *sdl.Renderer) error {
+func (s *scene) paint(renderer *sdl.Renderer) error {
 	s.time++
 
-	r.Clear()
+	renderer.Clear()
 
-	err := r.Copy(s.background, nil, nil)
+	err := renderer.Copy(s.background, nil, nil)
 	if err != nil {
 		return fmt.Errorf("could not paint scene: %v", err)
 	}
 
-	err = s.bird.Paint(r)
+	err = s.bird.Paint(renderer)
 	if err != nil {
 		fmt.Errorf("couldn paint the bird: %v", err)
 	}
 
-	err = s.pipes.Paint(r)
+	err = s.pipes.Paint(renderer)
 	if err != nil {
 		fmt.Errorf("couldn paint the pip: %v", err)
 	}
 
-	r.Present()
+	renderer.Present()
 
 	return nil
 }
@@ -87,7 +87,7 @@ func (s *scene) Destroy() {
 	s.pipes.Destroy()
 }
 
-func (s *scene) Run(events <-chan sdl.Event, r *sdl.Renderer) <-chan error {
+func (s *scene) Run(events <-chan sdl.Event, renderer *sdl.Renderer) <-chan error {
 	errc := make(chan error)
 
 	go func() {
@@ -104,11 +104,11 @@ func (s *scene) Run(events <-chan sdl.Event, r *sdl.Renderer) <-chan error {
 			case <-tick:
 				s.update()
 				if s.bird.IsDead() {
-					s.DrawTitle(r, gameOverText)
+					s.DrawTitle(renderer, gameOverText)
 					time.Sleep(2 * time.Second)
 					s.restart()
 				}
-				err := s.paint(r)
+				err := s.paint(renderer)
 				if err != nil {
 					errc <- err
 				}

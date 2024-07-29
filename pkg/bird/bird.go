@@ -26,11 +26,11 @@ type Bird struct {
 	Dead       bool
 }
 
-func NewBird(r *sdl.Renderer) (*Bird, error) {
+func NewBird(renderer *sdl.Renderer) (*Bird, error) {
 	var textures []*sdl.Texture
 	for i := 1; i <= 4; i++ {
 		path := fmt.Sprintf("../resources/Frame-%d.png", i)
-		texture, err := img.LoadTexture(r, path)
+		texture, err := img.LoadTexture(renderer, path)
 		if err != nil {
 			return nil, fmt.Errorf("could not create Bird textures: %v", err)
 		}
@@ -48,13 +48,13 @@ func NewBird(r *sdl.Renderer) (*Bird, error) {
 	}, nil
 }
 
-func (b *Bird) Paint(r *sdl.Renderer) error {
+func (b *Bird) Paint(renderer *sdl.Renderer) error {
 	b.Mu.RLock()
 	defer b.Mu.RUnlock()
 
 	i := b.time % len(b.textures)
 	rectangle := &sdl.Rect{X: b.X, Y: b.Y, W: b.W, H: b.H}
-	if err := r.Copy(b.textures[i], nil, rectangle); err != nil {
+	if err := renderer.Copy(b.textures[i], nil, rectangle); err != nil {
 		return fmt.Errorf("could not paint Bird: %v", err)
 	}
 

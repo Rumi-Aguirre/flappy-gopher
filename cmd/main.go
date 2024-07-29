@@ -35,27 +35,27 @@ func run() error {
 	}
 	defer ttf.Quit()
 
-	w, r, err := sdl.CreateWindowAndRenderer(window.Width, window.Height, sdl.WINDOW_SHOWN)
+	sdlWindow, renderer, err := sdl.CreateWindowAndRenderer(window.Width, window.Height, sdl.WINDOW_SHOWN)
 	if err != nil {
 		return fmt.Errorf("window cannot be created: %v", err)
 	}
-	defer w.Destroy()
+	defer sdlWindow.Destroy()
 
 	sdl.PumpEvents()
 	sdl.PumpEvents()
 
-	scene, err := scene.NewScene(r)
+	scene, err := scene.NewScene(renderer)
 	if err != nil {
 		return fmt.Errorf("cannot create scene: %v", err)
 	}
-	scene.DrawTitle(r, gameTitle)
+	scene.DrawTitle(renderer, gameTitle)
 
 	time.Sleep(1 * time.Second)
 
 	defer scene.Destroy()
 
 	events := make(chan sdl.Event)
-	errc := scene.Run(events, r)
+	errc := scene.Run(events, renderer)
 
 	for {
 		select {
