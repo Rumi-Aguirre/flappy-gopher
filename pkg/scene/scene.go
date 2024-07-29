@@ -1,6 +1,9 @@
-package main
+package scene
 
 import (
+	"flappy/pkg/bird"
+	"flappy/pkg/pipes"
+	"flappy/pkg/title"
 	"fmt"
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/sdl"
@@ -8,35 +11,49 @@ import (
 	"time"
 )
 
+const (
+	gameOverText = "Game Over"
+)
+
 type scene struct {
 	time       int
 	background *sdl.Texture
-	bird       *bird
-	pipes      *pipes
+	bird       *bird.Bird
+	pipes      *pipes.Pipes
+	title      *title.Title
 }
 
-func newScene(r *sdl.Renderer) (*scene, error) {
+func NewScene(r *sdl.Renderer) (*scene, error) {
 	bg, err := img.LoadTexture(r, "./resources/background.png")
 	if err != nil {
 		return nil, fmt.Errorf("could not create scene: %v", err)
 	}
 
-	bird, err := newBird(r)
+	bird, err := bird.NewBird(r)
 	if err != nil {
 		return nil, err
 	}
 
-	pipes, err := newPipes(r)
+	pipes, err := pipes.NewPipes(r)
 	if err != nil {
 		return nil, err
 	}
 
-	return &scene{background: bg, bird: bird, pipes: pipes}, nil
+	title, err := title.NewTitle()
+	if err != nil {
+		return nil, err
+	}
+
+	return &scene{background: bg, bird: bird, pipes: pipes, title: title}, nil
 }
 func (s *scene) update() {
-	s.bird.update()
-	s.pipes.update()
-	s.pipes.touch(s.bird)
+	s.bird.Update()
+	s.pipes.Update()
+	s.pipes.Touch(s.bird)
+}
+
+func (s *scene) DrawTitle(r *sdl.Renderer, text string) error {
+	return s.title.Paint(r, text)
 }
 
 func (s *scene) paint(r *sdl.Renderer) error {
@@ -49,12 +66,12 @@ func (s *scene) paint(r *sdl.Renderer) error {
 		return fmt.Errorf("could not paint scene: %v", err)
 	}
 
-	err = s.bird.paint(r)
+	err = s.bird.Paint(r)
 	if err != nil {
 		fmt.Errorf("couldn paint the bird: %v", err)
 	}
 
-	err = s.pipes.paint(r)
+	err = s.pipes.Paint(r)
 	if err != nil {
 		fmt.Errorf("couldn paint the pip: %v", err)
 	}
@@ -64,13 +81,13 @@ func (s *scene) paint(r *sdl.Renderer) error {
 	return nil
 }
 
-func (s *scene) destroy() {
+func (s *scene) Destroy() {
 	s.background.Destroy()
-	s.bird.destroy()
-	s.pipes.destroy()
+	s.bird.Destroy()
+	s.pipes.Destroy()
 }
 
-func (s *scene) run(events <-chan sdl.Event, r *sdl.Renderer) <-chan error {
+func (s *scene) Run(events <-chan sdl.Event, r *sdl.Renderer) <-chan error {
 	errc := make(chan error)
 
 	go func() {
@@ -86,8 +103,8 @@ func (s *scene) run(events <-chan sdl.Event, r *sdl.Renderer) <-chan error {
 				}
 			case <-tick:
 				s.update()
-				if s.bird.isDead() {
-					drawTitle(r, "Game over")
+				if s.bird.IsDead() {
+					s.DrawTitle(r, gameOverText)
 					time.Sleep(2 * time.Second)
 					s.restart()
 				}
@@ -108,7 +125,7 @@ func (s *scene) handleEvent(event sdl.Event) bool {
 		return true
 	case *sdl.TextInputEvent:
 		print(event)
-		s.bird.jump()
+		s.bird.Jump()
 		return false
 	default:
 		log.Printf("unkown event: %T", event)
@@ -117,6 +134,6 @@ func (s *scene) handleEvent(event sdl.Event) bool {
 }
 
 func (s *scene) restart() {
-	s.bird.restart()
-	s.pipes.restart()
+	s.bird.Restart()
+	s.pipes.Restart()
 }

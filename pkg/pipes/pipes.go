@@ -1,6 +1,8 @@
-package main
+package pipes
 
 import (
+	"flappy/pkg/bird"
+	"flappy/pkg/window"
 	"fmt"
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/sdl"
@@ -10,7 +12,7 @@ import (
 )
 
 const (
-	pipeTexturePath = "./resources/pipe-3.png"
+	pipeTexturePath = "./resources/Pipe-3.png"
 	initialPipeX    = 800
 	pipeWidth       = 43
 	minPipeHeight   = 220
@@ -18,29 +20,29 @@ const (
 	pipeSpeed       = 10
 )
 
-type pipes struct {
+type Pipes struct {
 	mu      sync.RWMutex
 	texture *sdl.Texture
 	speed   int32
-	pipes   []*pipe
+	pipes   []*Pipe
 }
 
-type pipe struct {
+type Pipe struct {
 	mu       sync.RWMutex
 	texture  *sdl.Texture
-	x        int32
-	h        int32
-	w        int32
-	inverted bool
+	X        int32
+	H        int32
+	W        int32
+	Inverted bool
 }
 
-func newPipes(r *sdl.Renderer) (*pipes, error) {
+func NewPipes(r *sdl.Renderer) (*Pipes, error) {
 	texture, err := img.LoadTexture(r, pipeTexturePath)
 	if err != nil {
-		return nil, fmt.Errorf("cannot load pipe texture: %v", err)
+		return nil, fmt.Errorf("cannot load Pipe texture: %v", err)
 	}
 
-	ps := &pipes{
+	ps := &Pipes{
 		texture: texture,
 		speed:   pipeSpeed,
 	}
@@ -50,11 +52,11 @@ func newPipes(r *sdl.Renderer) (*pipes, error) {
 	return ps, nil
 }
 
-func (ps *pipes) generatePipes(r *sdl.Renderer) {
+func (ps *Pipes) generatePipes(r *sdl.Renderer) {
 	for {
-		pipe, err := newPipe(r)
+		pipe, err := NewPipe(r)
 		if err != nil {
-			fmt.Printf("error creating new pipe: %v\n", err)
+			fmt.Printf("error creating new Pipe: %v\n", err)
 			continue
 		}
 
@@ -66,53 +68,70 @@ func (ps *pipes) generatePipes(r *sdl.Renderer) {
 	}
 }
 
-func newPipe(r *sdl.Renderer) (*pipe, error) {
+func NewPipe(r *sdl.Renderer) (*Pipe, error) {
 	texture, err := img.LoadTexture(r, pipeTexturePath)
 	if err != nil {
-		return nil, fmt.Errorf("cannot load pipe texture: %v", err)
+		return nil, fmt.Errorf("cannot load Pipe texture: %v", err)
 	}
 
-	return &pipe{
+	return &Pipe{
 		texture:  texture,
-		x:        initialPipeX,
-		h:        minPipeHeight + int32(rand.Intn(maxPipeHeight-minPipeHeight)),
-		w:        pipeWidth,
-		inverted: rand.Float32() > 0.5,
+		X:        initialPipeX,
+		H:        minPipeHeight + int32(rand.Intn(maxPipeHeight-minPipeHeight)),
+		W:        pipeWidth,
+		Inverted: rand.Float32() > 0.5,
 	}, nil
 }
 
-func (p *pipe) paint(r *sdl.Renderer, texture *sdl.Texture) error {
+func (p *Pipe) paint(r *sdl.Renderer, texture *sdl.Texture) error {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	y := screenHeight - p.h
-	if p.inverted {
+	y := window.Height - p.H
+	if p.Inverted {
 		y = 0
 	}
-	rectangle := &sdl.Rect{X: p.x, Y: y, W: p.w, H: p.h}
+	rectangle := &sdl.Rect{X: p.X, Y: y, W: p.W, H: p.H}
 
 	if err := r.Copy(texture, nil, rectangle); err != nil {
-		return fmt.Errorf("could not paint pipe: %v", err)
+		return fmt.Errorf("could not paint Pipe: %v", err)
 	}
 
 	return nil
 }
 
-func (p *pipe) update(speed int32) {
+func (p *Pipe) update(speed int32) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.x -= speed
+	p.X -= speed
 }
 
-func (p *pipe) touch(b *bird) {
+func (p *Pipe) touch(b *bird.Bird) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	b.touch(p)
+	//b.Touch(p)
+
+	b.Mu.Lock()
+	defer b.Mu.Unlock()
+
+	if p.X > b.X+b.W || p.X+p.W < b.X {
+		return
+	}
+
+	if p.Inverted {
+		if b.Y < p.H {
+			b.Dead = true
+		}
+	} else {
+		if b.Y+b.H > window.Height-p.H {
+			b.Dead = true
+		}
+	}
 }
 
-func (ps *pipes) paint(r *sdl.Renderer) error {
+func (ps *Pipes) Paint(r *sdl.Renderer) error {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 
@@ -125,15 +144,15 @@ func (ps *pipes) paint(r *sdl.Renderer) error {
 	return nil
 }
 
-func (ps *pipes) update() {
+func (ps *Pipes) Update() {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
-	var remainingPipes []*pipe
+	var remainingPipes []*Pipe
 
 	for _, p := range ps.pipes {
 		p.update(ps.speed)
-		if p.x > -30 {
+		if p.X > -30 {
 			remainingPipes = append(remainingPipes, p)
 		}
 	}
@@ -141,21 +160,21 @@ func (ps *pipes) update() {
 	ps.pipes = remainingPipes
 }
 
-func (ps *pipes) destroy() {
+func (ps *Pipes) Destroy() {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
 	ps.texture.Destroy()
 }
 
-func (ps *pipes) restart() {
+func (ps *Pipes) Restart() {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
 	ps.pipes = nil
 }
 
-func (ps *pipes) touch(b *bird) {
+func (ps *Pipes) Touch(b *bird.Bird) {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 

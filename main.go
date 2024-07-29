@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flappy/pkg/scene"
+	"flappy/pkg/window"
 	"fmt"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
@@ -9,7 +11,7 @@ import (
 )
 
 const (
-	screenHeight = 600
+	gameTitle = "Flappy Gopher"
 )
 
 func main() {
@@ -33,7 +35,7 @@ func run() error {
 	}
 	defer ttf.Quit()
 
-	w, r, err := sdl.CreateWindowAndRenderer(800, 600, sdl.WINDOW_SHOWN)
+	w, r, err := sdl.CreateWindowAndRenderer(window.Width, window.Height, sdl.WINDOW_SHOWN)
 	if err != nil {
 		return fmt.Errorf("window cannot be created: %v", err)
 	}
@@ -42,17 +44,19 @@ func run() error {
 	sdl.PumpEvents()
 	sdl.PumpEvents()
 
-	drawTitle(r, "Flappy Rumai")
+	scene, err := scene.NewScene(r)
+
+	scene.DrawTitle(r, gameTitle)
+
 	time.Sleep(1 * time.Second)
 
-	scene, err := newScene(r)
 	if err != nil {
 		return fmt.Errorf("cannot create scene: %v", err)
 	}
-	defer scene.destroy()
+	defer scene.Destroy()
 
 	events := make(chan sdl.Event)
-	errc := scene.run(events, r)
+	errc := scene.Run(events, r)
 
 	for {
 		select {
@@ -61,35 +65,4 @@ func run() error {
 			return err
 		}
 	}
-}
-
-func drawTitle(r *sdl.Renderer, text string) error {
-	err := r.Clear()
-	if err != nil {
-		return err
-	}
-
-	f, err := ttf.OpenFont("./resources/SEASRN__.ttf", 18)
-	if err != nil {
-		return fmt.Errorf("font cannot be opened: %v", err)
-	}
-	defer f.Close()
-
-	s, err := f.RenderUTF8Solid(text, sdl.Color{111, 230, 16, 255})
-	if err != nil {
-		return fmt.Errorf("title cannot be rendered: %v", err)
-	}
-	defer s.Free()
-
-	t, err := r.CreateTextureFromSurface(s)
-	if err != nil {
-		return fmt.Errorf("surface cannot be created: %v", err)
-	}
-	defer t.Destroy()
-
-	r.Copy(t, nil, nil)
-
-	r.Present()
-
-	return nil
 }
