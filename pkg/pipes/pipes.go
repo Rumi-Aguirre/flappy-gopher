@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	pipeTexturePath = "./resources/Pipe-3.png"
+	pipeTexturePath = "../resources/Pipe-3.png"
 	initialPipeX    = 800
 	pipeWidth       = 43
 	minPipeHeight   = 220
